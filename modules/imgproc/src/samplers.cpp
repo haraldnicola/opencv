@@ -64,7 +64,7 @@ adjustRect( const uchar* src, size_t src_step, int pix_size,
             rect.x = win_size.width;
     }
 
-    if( ip.x + win_size.width < src_size.width )
+    if( ip.x < src_size.width - win_size.width )
         rect.width = win_size.width;
     else
     {
@@ -85,7 +85,7 @@ adjustRect( const uchar* src, size_t src_step, int pix_size,
     else
         rect.y = -ip.y;
 
-    if( ip.y + win_size.height < src_size.height )
+    if( ip.y < src_size.height - win_size.height )
         rect.height = win_size.height;
     else
     {
@@ -102,17 +102,259 @@ adjustRect( const uchar* src, size_t src_step, int pix_size,
 }
 
 
+<<<<<<< HEAD
 enum { SUBPIX_SHIFT=16 };
+=======
+#define  ICV_DEF_GET_RECT_SUB_PIX_FUNC( flavor, srctype, dsttype, worktype, \
+                                        cast_macro, scale_macro, cast_macro2 )\
+CvStatus CV_STDCALL icvGetRectSubPix_##flavor##_C1R                         \
+( const srctype* src, int src_step, CvSize src_size,                        \
+  dsttype* dst, int dst_step, CvSize win_size, CvPoint2D32f center )        \
+{                                                                           \
+    CvPoint ip;                                                             \
+    worktype  a11, a12, a21, a22, b1, b2;                                   \
+    float a, b;                                                             \
+    int i, j;                                                               \
+                                                                            \
+    center.x -= (win_size.width-1)*0.5f;                                    \
+    center.y -= (win_size.height-1)*0.5f;                                   \
+                                                                            \
+    ip.x = cvFloor( center.x );                                             \
+    ip.y = cvFloor( center.y );                                             \
+                                                                            \
+    a = center.x - ip.x;                                                    \
+    b = center.y - ip.y;                                                    \
+    a11 = scale_macro((1.f-a)*(1.f-b));                                     \
+    a12 = scale_macro(a*(1.f-b));                                           \
+    a21 = scale_macro((1.f-a)*b);                                           \
+    a22 = scale_macro(a*b);                                                 \
+    b1 = scale_macro(1.f - b);                                              \
+    b2 = scale_macro(b);                                                    \
+                                                                            \
+    src_step /= sizeof(src[0]);                                             \
+    dst_step /= sizeof(dst[0]);                                             \
+                                                                            \
+    if( 0 <= ip.x && ip.x < src_size.width - win_size.width &&              \
+        0 <= ip.y && ip.y < src_size.height - win_size.height )             \
+    {                                                                       \
+        /* extracted rectangle is totally inside the image */               \
+        src += ip.y * src_step + ip.x;                                      \
+                                                                            \
+        for( i = 0; i < win_size.height; i++, src += src_step,              \
+                                              dst += dst_step )             \
+        {                                                                   \
+            for( j = 0; j <= win_size.width - 2; j += 2 )                   \
+            {                                                               \
+                worktype s0 = cast_macro(src[j])*a11 +                      \
+                              cast_macro(src[j+1])*a12 +                    \
+                              cast_macro(src[j+src_step])*a21 +             \
+                              cast_macro(src[j+src_step+1])*a22;            \
+                worktype s1 = cast_macro(src[j+1])*a11 +                    \
+                              cast_macro(src[j+2])*a12 +                    \
+                              cast_macro(src[j+src_step+1])*a21 +           \
+                              cast_macro(src[j+src_step+2])*a22;            \
+                                                                            \
+                dst[j] = (dsttype)cast_macro2(s0);                          \
+                dst[j+1] = (dsttype)cast_macro2(s1);                        \
+            }                                                               \
+                                                                            \
+            for( ; j < win_size.width; j++ )                                \
+            {                                                               \
+                worktype s0 = cast_macro(src[j])*a11 +                      \
+                              cast_macro(src[j+1])*a12 +                    \
+                              cast_macro(src[j+src_step])*a21 +             \
+                              cast_macro(src[j+src_step+1])*a22;            \
+                                                                            \
+                dst[j] = (dsttype)cast_macro2(s0);                          \
+            }                                                               \
+        }                                                                   \
+    }                                                                       \
+    else                                                                    \
+    {                                                                       \
+        CvRect r;                                                           \
+                                                                            \
+        src = (const srctype*)icvAdjustRect( src, src_step*sizeof(*src),    \
+                               sizeof(*src), src_size, win_size,ip, &r);    \
+                                                                            \
+        for( i = 0; i < win_size.height; i++, dst += dst_step )             \
+        {                                                                   \
+            const srctype *src2 = src + src_step;                           \
+                                                                            \
+            if( i < r.y || i >= r.height )                                  \
+                src2 -= src_step;                                           \
+                                                                            \
+            for( j = 0; j < r.x; j++ )                                      \
+            {                                                               \
+                worktype s0 = cast_macro(src[r.x])*b1 +                     \
+                              cast_macro(src2[r.x])*b2;                     \
+                                                                            \
+                dst[j] = (dsttype)cast_macro2(s0);                          \
+            }                                                               \
+                                                                            \
+            for( ; j < r.width; j++ )                                       \
+            {                                                               \
+                worktype s0 = cast_macro(src[j])*a11 +                      \
+                              cast_macro(src[j+1])*a12 +                    \
+                              cast_macro(src2[j])*a21 +                     \
+                              cast_macro(src2[j+1])*a22;                    \
+                                                                            \
+                dst[j] = (dsttype)cast_macro2(s0);                          \
+            }                                                               \
+                                                                            \
+            for( ; j < win_size.width; j++ )                                \
+            {                                                               \
+                worktype s0 = cast_macro(src[r.width])*b1 +                 \
+                              cast_macro(src2[r.width])*b2;                 \
+                                                                            \
+                dst[j] = (dsttype)cast_macro2(s0);                          \
+            }                                                               \
+                                                                            \
+            if( i < r.height )                                              \
+                src = src2;                                                 \
+        }                                                                   \
+    }                                                                       \
+                                                                            \
+    return CV_OK;                                                           \
+}
+>>>>>>> 060e58d0801e9ed87f13ce7e2c5ce439fba6f019
 
 struct scale_fixpt
 {
     int operator()(float a) const { return cvRound(a*(1 << SUBPIX_SHIFT)); }
 };
 
+<<<<<<< HEAD
 struct cast_8u
 {
     uchar operator()(int a) const { return (uchar)((a + (1 << (SUBPIX_SHIFT-1))) >> SUBPIX_SHIFT); }
 };
+=======
+#define  ICV_DEF_GET_RECT_SUB_PIX_FUNC_C3( flavor, srctype, dsttype, worktype, \
+                                        cast_macro, scale_macro, mul_macro )\
+static CvStatus CV_STDCALL icvGetRectSubPix_##flavor##_C3R                  \
+( const srctype* src, int src_step, CvSize src_size,                        \
+  dsttype* dst, int dst_step, CvSize win_size, CvPoint2D32f center )        \
+{                                                                           \
+    CvPoint ip;                                                             \
+    worktype a, b;                                                          \
+    int i, j;                                                               \
+                                                                            \
+    center.x -= (win_size.width-1)*0.5f;                                    \
+    center.y -= (win_size.height-1)*0.5f;                                   \
+                                                                            \
+    ip.x = cvFloor( center.x );                                             \
+    ip.y = cvFloor( center.y );                                             \
+                                                                            \
+    a = scale_macro( center.x - ip.x );                                     \
+    b = scale_macro( center.y - ip.y );                                     \
+                                                                            \
+    src_step /= sizeof( src[0] );                                           \
+    dst_step /= sizeof( dst[0] );                                           \
+                                                                            \
+    if( 0 <= ip.x && ip.x < src_size.width - win_size.width &&              \
+        0 <= ip.y && ip.y < src_size.height - win_size.height )             \
+    {                                                                       \
+        /* extracted rectangle is totally inside the image */               \
+        src += ip.y * src_step + ip.x*3;                                    \
+                                                                            \
+        for( i = 0; i < win_size.height; i++, src += src_step,              \
+                                              dst += dst_step )             \
+        {                                                                   \
+            for( j = 0; j < win_size.width; j++ )                           \
+            {                                                               \
+                worktype s0 = cast_macro(src[j*3]);                         \
+                worktype s1 = cast_macro(src[j*3 + src_step]);              \
+                s0 += mul_macro( a, (cast_macro(src[j*3+3]) - s0));         \
+                s1 += mul_macro( a, (cast_macro(src[j*3+3+src_step]) - s1));\
+                dst[j*3] = (dsttype)(s0 + mul_macro( b, (s1 - s0)));        \
+                                                                            \
+                s0 = cast_macro(src[j*3+1]);                                \
+                s1 = cast_macro(src[j*3+1 + src_step]);                     \
+                s0 += mul_macro( a, (cast_macro(src[j*3+4]) - s0));         \
+                s1 += mul_macro( a, (cast_macro(src[j*3+4+src_step]) - s1));\
+                dst[j*3+1] = (dsttype)(s0 + mul_macro( b, (s1 - s0)));      \
+                                                                            \
+                s0 = cast_macro(src[j*3+2]);                                \
+                s1 = cast_macro(src[j*3+2 + src_step]);                     \
+                s0 += mul_macro( a, (cast_macro(src[j*3+5]) - s0));         \
+                s1 += mul_macro( a, (cast_macro(src[j*3+5+src_step]) - s1));\
+                dst[j*3+2] = (dsttype)(s0 + mul_macro( b, (s1 - s0)));      \
+            }                                                               \
+        }                                                                   \
+    }                                                                       \
+    else                                                                    \
+    {                                                                       \
+        CvRect r;                                                           \
+                                                                            \
+        src = (const srctype*)icvAdjustRect( src, src_step*sizeof(*src),    \
+                             sizeof(*src)*3, src_size, win_size, ip, &r );  \
+                                                                            \
+        for( i = 0; i < win_size.height; i++, dst += dst_step )             \
+        {                                                                   \
+            const srctype *src2 = src + src_step;                           \
+                                                                            \
+            if( i < r.y || i >= r.height )                                  \
+                src2 -= src_step;                                           \
+                                                                            \
+            for( j = 0; j < r.x; j++ )                                      \
+            {                                                               \
+                worktype s0 = cast_macro(src[r.x*3]);                       \
+                worktype s1 = cast_macro(src2[r.x*3]);                      \
+                dst[j*3] = (dsttype)(s0 + mul_macro( b, (s1 - s0)));        \
+                                                                            \
+                s0 = cast_macro(src[r.x*3+1]);                              \
+                s1 = cast_macro(src2[r.x*3+1]);                             \
+                dst[j*3+1] = (dsttype)(s0 + mul_macro( b, (s1 - s0)));      \
+                                                                            \
+                s0 = cast_macro(src[r.x*3+2]);                              \
+                s1 = cast_macro(src2[r.x*3+2]);                             \
+                dst[j*3+2] = (dsttype)(s0 + mul_macro( b, (s1 - s0)));      \
+            }                                                               \
+                                                                            \
+            for( ; j < r.width; j++ )                                       \
+            {                                                               \
+                worktype s0 = cast_macro(src[j*3]);                         \
+                worktype s1 = cast_macro(src2[j*3]);                        \
+                s0 += mul_macro( a, (cast_macro(src[j*3 + 3]) - s0));       \
+                s1 += mul_macro( a, (cast_macro(src2[j*3 + 3]) - s1));      \
+                dst[j*3] = (dsttype)(s0 + mul_macro( b, (s1 - s0)));        \
+                                                                            \
+                s0 = cast_macro(src[j*3+1]);                                \
+                s1 = cast_macro(src2[j*3+1]);                               \
+                s0 += mul_macro( a, (cast_macro(src[j*3 + 4]) - s0));       \
+                s1 += mul_macro( a, (cast_macro(src2[j*3 + 4]) - s1));      \
+                dst[j*3+1] = (dsttype)(s0 + mul_macro( b, (s1 - s0)));      \
+                                                                            \
+                s0 = cast_macro(src[j*3+2]);                                \
+                s1 = cast_macro(src2[j*3+2]);                               \
+                s0 += mul_macro( a, (cast_macro(src[j*3 + 5]) - s0));       \
+                s1 += mul_macro( a, (cast_macro(src2[j*3 + 5]) - s1));      \
+                dst[j*3+2] = (dsttype)(s0 + mul_macro( b, (s1 - s0)));      \
+            }                                                               \
+                                                                            \
+            for( ; j < win_size.width; j++ )                                \
+            {                                                               \
+                worktype s0 = cast_macro(src[r.width*3]);                   \
+                worktype s1 = cast_macro(src2[r.width*3]);                  \
+                dst[j*3] = (dsttype)(s0 + mul_macro( b, (s1 - s0)));        \
+                                                                            \
+                s0 = cast_macro(src[r.width*3+1]);                          \
+                s1 = cast_macro(src2[r.width*3+1]);                         \
+                dst[j*3+1] = (dsttype)(s0 + mul_macro( b, (s1 - s0)));      \
+                                                                            \
+                s0 = cast_macro(src[r.width*3+2]);                          \
+                s1 = cast_macro(src2[r.width*3+2]);                         \
+                dst[j*3+2] = (dsttype)(s0 + mul_macro( b, (s1 - s0)));      \
+            }                                                               \
+                                                                            \
+            if( i < r.height )                                              \
+                src = src2;                                                 \
+        }                                                                   \
+    }                                                                       \
+                                                                            \
+    return CV_OK;                                                           \
+}
+>>>>>>> 060e58d0801e9ed87f13ce7e2c5ce439fba6f019
 
 struct cast_flt_8u
 {
@@ -155,8 +397,13 @@ void getRectSubPix_Cn_(const _Tp* src, size_t src_step, Size src_size,
     src_step /= sizeof(src[0]);
     dst_step /= sizeof(dst[0]);
 
+<<<<<<< HEAD
     if( 0 <= ip.x && ip.x + win_size.width < src_size.width &&
        0 <= ip.y && ip.y + win_size.height < src_size.height )
+=======
+    if( 0 <= ip.x && ip.x < src_size.width - win_size.width &&
+        0 <= ip.y && ip.y < src_size.height - win_size.height )
+>>>>>>> 060e58d0801e9ed87f13ce7e2c5ce439fba6f019
     {
         // extracted rectangle is totally inside the image
         src += ip.y * src_step + ip.x*cn;

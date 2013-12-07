@@ -456,6 +456,7 @@ namespace cv
             return data == 0;
         }
 
+<<<<<<< HEAD
 
 
         inline uchar *oclMat::ptr(int y)
@@ -486,6 +487,8 @@ namespace cv
             return (const _Tp *)(data + step * y);
         }
 
+=======
+>>>>>>> 060e58d0801e9ed87f13ce7e2c5ce439fba6f019
         inline oclMat oclMat::t() const
         {
             oclMat tmp;

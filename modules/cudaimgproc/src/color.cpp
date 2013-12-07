@@ -2105,8 +2105,16 @@ void cv::cuda::cvtColor(InputArray src, OutputArray dst, int code, int dcn, Stre
     func(src, dst, dcn, stream);
 }
 
+<<<<<<< HEAD:modules/cudaimgproc/src/color.cpp
 ////////////////////////////////////////////////////////////////////////
 // demosaicing
+=======
+void cv::gpu::demosaicing(const GpuMat& src, GpuMat& dst, int code, int dcn, Stream& stream)
+{
+    const int depth = src.depth();
+
+    CV_Assert( src.channels() == 1 && !src.empty() );
+>>>>>>> 060e58d0801e9ed87f13ce7e2c5ce439fba6f019:modules/gpu/src/color.cpp
 
 void cv::cuda::demosaicing(InputArray _src, OutputArray _dst, int code, int dcn, Stream& stream)
 {

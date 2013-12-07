@@ -141,12 +141,21 @@ static void computeOrbDescriptor(const KeyPoint& kpt,
     float x, y;
     int ix, iy;
 #if 1
+<<<<<<< HEAD
 #define GET_VALUE(idx) \
        (x = pattern[idx].x*a - pattern[idx].y*b, \
         y = pattern[idx].x*b + pattern[idx].y*a, \
         ix = cvRound(x), \
         iy = cvRound(y), \
         *(center + iy*step + ix) )
+=======
+    #define GET_VALUE(idx) \
+           (x = pattern[idx].x*a - pattern[idx].y*b, \
+            y = pattern[idx].x*b + pattern[idx].y*a, \
+            ix = cvRound(x), \
+            iy = cvRound(y), \
+            *(center + iy*step + ix) )
+>>>>>>> 060e58d0801e9ed87f13ce7e2c5ce439fba6f019
 #else
     #define GET_VALUE(idx) \
         (x = pattern[idx].x*a - pattern[idx].y*b, \
